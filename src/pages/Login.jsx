@@ -1,20 +1,29 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, db } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { FaUserLock, FaSignInAlt, FaUniversity, FaEnvelope, FaLock, FaCircle } from 'react-icons/fa';
+import { FaUserLock, FaSignInAlt, FaUniversity, FaEnvelope, FaLock, FaCircle, FaPaperPlane, FaTimes } from 'react-icons/fa';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [info, setInfo] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    // Application Modal State
+    const [showAppModal, setShowAppModal] = useState(false);
+    const [appForm, setAppForm] = useState({
+        name: '', email: '', role: 'student', details: '', message: ''
+    });
+    const [appLoading, setAppLoading] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
+        setInfo('');
         setLoading(true);
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -41,6 +50,40 @@ const Login = () => {
             console.error(err);
         }
         setLoading(false);
+    };
+
+    const handleForgotPassword = async () => {
+        if (!email) {
+            setError("Please enter your email address first.");
+            return;
+        }
+        try {
+            await sendPasswordResetEmail(auth, email);
+            setInfo("Password reset link sent! Check your email.");
+            setError('');
+        } catch (err) {
+            console.error(err);
+            setError("Failed to send reset email. " + err.message);
+        }
+    };
+
+    const handleAppSubmit = async (e) => {
+        e.preventDefault();
+        setAppLoading(true);
+        try {
+            await addDoc(collection(db, "applications"), {
+                ...appForm,
+                timestamp: serverTimestamp(),
+                status: 'pending'
+            });
+            alert("Application submitted successfully! The admin will review it shortly.");
+            setShowAppModal(false);
+            setAppForm({ name: '', email: '', role: 'student', details: '', message: '' });
+        } catch (err) {
+            console.error(err);
+            alert("Failed to submit application.");
+        }
+        setAppLoading(false);
     };
 
     return (
@@ -70,10 +113,15 @@ const Login = () => {
                         <p className="text-blue-200 mt-2 text-sm">EduTrack Smart Attendance System</p>
                     </div>
 
-                    {/* Error Message */}
+                    {/* Messages */}
                     {error && (
                         <div className="bg-red-500/10 border border-red-500/50 text-red-200 p-3 rounded-lg text-sm mb-6 flex items-center gap-2 animate-pulse">
                             <FaCircle className="text-[10px]" /> {error}
+                        </div>
+                    )}
+                    {info && (
+                        <div className="bg-green-500/10 border border-green-500/50 text-green-200 p-3 rounded-lg text-sm mb-6 flex items-center gap-2 animate-pulse">
+                            <FaCircle className="text-[10px]" /> {info}
                         </div>
                     )}
 
@@ -112,7 +160,9 @@ const Login = () => {
                                 <input type="checkbox" className="form-checkbox h-4 w-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-offset-gray-900 focus:ring-blue-500" />
                                 <span className="ml-2">Remember me</span>
                             </label>
-                            <a href="#" className="hover:text-white transition-colors hover:underline">Forgot password?</a>
+                            <button type="button" onClick={handleForgotPassword} className="hover:text-white transition-colors hover:underline">
+                                Forgot password?
+                            </button>
                         </div>
 
                         <button
@@ -130,25 +180,104 @@ const Login = () => {
                                 </span>
                             ) : (
                                 <>
-                                    <FaSignInAlt /> Sign In
+                                    <FaSignInAlt /> Log in
                                 </>
                             )}
                         </button>
                     </form>
 
-                    {/* Footer */}
-                    <div className="mt-8 text-center text-xs text-blue-200/60">
-                        <p>&copy; 2024 EduTrack System. All rights reserved.</p>
+                    {/* Footer - Application Link */}
+                    <div className="mt-8 text-center text-sm text-gray-400">
+                        <p>
+                            Don't have an account?{' '}
+                            <button onClick={() => setShowAppModal(true)} className="text-blue-400 font-bold hover:text-white transition-colors hover:underline">
+                                Apply for one
+                            </button>
+                        </p>
                     </div>
                 </div>
-
-                {/* Need Help link underneath */}
-                <div className="text-center mt-6">
-                    <a href="#" className="text-sm text-blue-300 hover:text-white transition-colors font-medium">
-                        Need help accessing your account?
-                    </a>
-                </div>
             </div>
+
+            {/* Application Modal */}
+            {showAppModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+                    <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                        <button onClick={() => setShowAppModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">
+                            <FaTimes size={20} />
+                        </button>
+
+                        <h2 className="text-2xl font-bold text-white mb-2">Apply for Account</h2>
+                        <p className="text-gray-400 text-sm mb-6">Submit your details. An admin will review your application.</p>
+
+                        <form onSubmit={handleAppSubmit} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 mb-1">Full Name</label>
+                                    <input
+                                        type="text" required
+                                        value={appForm.name} onChange={e => setAppForm({ ...appForm, name: e.target.value })}
+                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 mb-1">Email</label>
+                                    <input
+                                        type="email" required
+                                        value={appForm.email} onChange={e => setAppForm({ ...appForm, email: e.target.value })}
+                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-1">Applying As</label>
+                                <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-700">
+                                    {['student', 'teacher'].map(r => (
+                                        <button
+                                            key={r} type="button"
+                                            onClick={() => setAppForm({ ...appForm, role: r })}
+                                            className={`flex-1 py-1.5 rounded-md text-sm font-bold capitalize transition-all ${appForm.role === r ? 'bg-blue-600 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
+                                        >
+                                            {r}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-1">
+                                    {appForm.role === 'student' ? 'Roll No & Class' : 'Subject / Department'}
+                                </label>
+                                <input
+                                    type="text" required
+                                    placeholder={appForm.role === 'student' ? 'e.g. CS-101, BSCS 3-A' : 'e.g. Computer Science'}
+                                    value={appForm.details} onChange={e => setAppForm({ ...appForm, details: e.target.value })}
+                                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-1">Message (Optional)</label>
+                                <textarea
+                                    rows="2"
+                                    value={appForm.message} onChange={e => setAppForm({ ...appForm, message: e.target.value })}
+                                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none resize-none"
+                                    placeholder="Any extra info..."
+                                ></textarea>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={appLoading}
+                                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2 mt-4"
+                            >
+                                {appLoading ? 'Sending...' : <><FaPaperPlane /> Submit Application</>}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

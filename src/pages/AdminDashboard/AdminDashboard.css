@@ -1,4 +1,6 @@
 @import "tailwindcss";
 
-/* AdminDashboard.css */
-/* Minimal styles as we use mostly utility classes in JSX */
+/* 
+ * Styles have been migrated to Tailwind CSS in AdminDashboard.jsx.
+ * This file is kept for potential future custom styles that can't be handled by utilities.
+ */

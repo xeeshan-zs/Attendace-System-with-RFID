@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../../firebase';
 import { doc, setDoc, collection, getDocs, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuth';
 import './AdminDashboard.css';
-import { FaUserPlus, FaUserShield, FaSignOutAlt, FaChalkboardTeacher, FaUserGraduate, FaUsersCog, FaTrash, FaEdit, FaSearch, FaTimes } from 'react-icons/fa';
+import {
+    FaUserPlus, FaUserShield, FaSignOutAlt, FaChalkboardTeacher,
+    FaUserGraduate, FaUsersCog, FaTrash, FaEdit, FaTimes,
+    FaUniversity, FaBars
+} from 'react-icons/fa';
 
 /**
  * Admin Dashboard with full CRUD capabilities.
+ * Styled to match StudentDashboard.
  */
 const AdminDashboard = () => {
     const { user } = useAuth();
@@ -16,6 +21,7 @@ const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState('create-user'); // 'create-user' | 'teachers' | 'students' | 'admins'
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     // Data State
     const [usersList, setUsersList] = useState([]);
@@ -33,16 +39,26 @@ const AdminDashboard = () => {
     // --- EFFECTS ---
     useEffect(() => {
         if (activeTab !== 'create-user') {
-            fetchUsers(activeTab); // activeTab matches role name logic mostly
+            fetchUsers(activeTab);
         }
     }, [activeTab, refreshTrigger]);
+
+    useEffect(() => {
+        // Responsive sidebar handler
+        const handleResize = () => {
+            if (window.innerWidth < 768) setIsSidebarOpen(false);
+            else setIsSidebarOpen(true);
+        };
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Init
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // --- ACTIONS ---
 
     const fetchUsers = async (roleType) => {
         setLoading(true);
         try {
-            // Map tab names to role values in DB
             let dbRole = 'student';
             if (roleType === 'teachers') dbRole = 'teacher';
             if (roleType === 'admins') dbRole = 'admin';
@@ -67,11 +83,9 @@ const AdminDashboard = () => {
         setMessage({ text: '', type: '' });
 
         try {
-            // 1. Create User in Auth (Logs out current admin)
             const userCredential = await createUserWithEmailAndPassword(auth, createForm.email, createForm.password);
             const newUser = userCredential.user;
 
-            // 2. Create User Profile
             await setDoc(doc(db, "users", newUser.uid), {
                 email: createForm.email,
                 role: createForm.role,
@@ -83,7 +97,6 @@ const AdminDashboard = () => {
             });
 
             setMessage({ text: `Success! User ${createForm.email} created. You have been logged in as the new user.`, type: "success" });
-            // Auth listener in App.jsx handles the rest (likely redirecting the new user)
         } catch (error) {
             console.error("Error creating user:", error);
             setMessage({ text: `Error: ${error.message}`, type: "error" });
@@ -138,179 +151,338 @@ const AdminDashboard = () => {
     // --- RENDER HELPERS ---
 
     const renderUserTable = () => (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-6">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        {activeTab === 'students' && (
-                            <>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
-                            </>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-6 animate-fadeIn">
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-sm uppercase tracking-wider">
+                            <th className="p-4 font-semibold">Name</th>
+                            <th className="p-4 font-semibold">Email</th>
+                            {activeTab === 'students' && (
+                                <>
+                                    <th className="p-4 font-semibold">Roll No</th>
+                                    <th className="p-4 font-semibold">Class</th>
+                                </>
+                            )}
+                            <th className="p-4 font-semibold">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {usersList.length === 0 ? (
+                            <tr><td colSpan="5" className="p-8 text-center text-gray-500">No users found.</td></tr>
+                        ) : (
+                            usersList.map(u => (
+                                <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="p-4 font-medium text-gray-800">{u.name}</td>
+                                    <td className="p-4 text-gray-600">{u.email}</td>
+                                    {activeTab === 'students' && (
+                                        <>
+                                            <td className="p-4 text-gray-600 font-mono text-sm">{u.rollNumber}</td>
+                                            <td className="p-4 text-gray-600">
+                                                <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-bold">{u.class}</span>
+                                            </td>
+                                        </>
+                                    )}
+                                    <td className="p-4 flex gap-3">
+                                        <button onClick={() => openEditModal(u)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+                                            <FaEdit />
+                                        </button>
+                                        <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                            <FaTrash />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
                         )}
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {usersList.length === 0 ? (
-                        <tr><td colSpan="5" className="text-center py-8 text-gray-500">No users found.</td></tr>
-                    ) : (
-                        usersList.map(u => (
-                            <tr key={u.id}>
-                                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{u.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-gray-500">{u.email}</td>
-                                {activeTab === 'students' && (
-                                    <>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-500">{u.rollNumber}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-500">{u.class}</td>
-                                    </>
-                                )}
-                                <td className="px-6 py-4 whitespace-nowrap flex gap-3">
-                                    <button onClick={() => openEditModal(u)} className="text-blue-600 hover:text-blue-800"><FaEdit /></button>
-                                    <button onClick={() => handleDeleteUser(u.id)} className="text-red-600 hover:text-red-800"><FaTrash /></button>
-                                </td>
-                            </tr>
-                        ))
-                    )}
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 
     return (
-        <div className="flex h-screen bg-gray-100 font-sans">
+        <div className="flex h-screen bg-gray-50 text-gray-800 overflow-hidden font-sans">
             {/* Sidebar */}
-            <aside className="w-64 bg-slate-900 text-white flex flex-col hidden md:flex">
-                <div className="p-6 border-b border-slate-700 flex items-center gap-3">
-                    <FaUserShield className="text-purple-400 text-2xl" />
-                    <span className="font-bold text-lg">Admin Panel</span>
+            <aside
+                className={`fixed md:relative z-20 bg-white h-full w-72 shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col justify-between 
+                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 md:w-72'}`}
+            >
+                <div>
+                    {/* Logo Area */}
+                    <div className="p-6 border-b border-gray-100 flex items-center gap-3">
+                        <div className="bg-blue-600 text-white p-2 rounded-lg shadow-lg shadow-blue-600/20">
+                            <FaUniversity size={24} />
+                        </div>
+                        <h1 className="text-xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-tight">
+                            EduTrack
+                        </h1>
+                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded border border-gray-200 uppercase font-bold tracking-wider">Admin</span>
+                    </div>
+
+                    {/* Navigation */}
+                    <nav className="p-4 space-y-2 mt-4">
+                        <div className="px-4 pb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Management</div>
+
+                        <button
+                            onClick={() => setActiveTab('create-user')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'create-user'
+                                ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                }`}
+                        >
+                            <FaUserPlus size={18} /> Create User
+                        </button>
+
+                        <button
+                            onClick={() => setActiveTab('teachers')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'teachers'
+                                ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                }`}
+                        >
+                            <FaChalkboardTeacher size={18} /> Manage Teachers
+                        </button>
+
+                        <button
+                            onClick={() => setActiveTab('students')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'students'
+                                ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                }`}
+                        >
+                            <FaUserGraduate size={18} /> Manage Students
+                        </button>
+
+                        <button
+                            onClick={() => setActiveTab('admins')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'admins'
+                                ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                }`}
+                        >
+                            <FaUsersCog size={18} /> Manage Admins
+                        </button>
+                    </nav>
                 </div>
-                <nav className="flex-1 p-4 space-y-2">
-                    <div className={`nav-item ${activeTab === 'create-user' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`} onClick={() => setActiveTab('create-user')}>
-                        <FaUserPlus /> <span>Create User</span>
+
+                {/* Bottom Section */}
+                <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+                    <div className="mb-4 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                                <FaUserShield />
+                            </div>
+                            <div className="overflow-hidden">
+                                <p className="text-sm font-bold text-gray-800 truncate">Administrator</p>
+                                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                            </div>
+                        </div>
                     </div>
-                    <div className={`nav-item ${activeTab === 'teachers' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`} onClick={() => setActiveTab('teachers')}>
-                        <FaChalkboardTeacher /> <span>Manage Teachers</span>
-                    </div>
-                    <div className={`nav-item ${activeTab === 'students' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`} onClick={() => setActiveTab('students')}>
-                        <FaUserGraduate /> <span>Manage Students</span>
-                    </div>
-                    <div className={`nav-item ${activeTab === 'admins' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`} onClick={() => setActiveTab('admins')}>
-                        <FaUsersCog /> <span>Manage Admins</span>
-                    </div>
-                </nav>
-                <div className="p-4 border-t border-slate-700">
-                    <button onClick={handleLogout} className="flex items-center gap-3 text-slate-400 hover:text-red-400 w-full px-4 py-2 transition-colors">
-                        <FaSignOutAlt /> <span>Logout</span>
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-100 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors group"
+                    >
+                        <FaSignOutAlt className="group-hover:-translate-x-1 transition-transform" /> Sign Out
                     </button>
                 </div>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto">
-                {/* Mobile Header */}
-                <header className="bg-white shadow-sm p-4 flex justify-between items-center md:hidden">
-                    <span className="font-bold text-gray-800">Admin Dashboard</span>
-                    <button onClick={handleLogout} className="text-gray-600"><FaSignOutAlt /></button>
+            <main className="flex-1 flex flex-col h-full relative w-full overflow-hidden bg-gray-50">
+                {/* Header */}
+                <header className="bg-white h-16 border-b border-gray-100 flex items-center justify-between px-4 md:px-8 shadow-sm z-10">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg md:hidden"
+                        >
+                            <FaBars size={20} />
+                        </button>
+                        <h2 className="text-xl font-bold text-gray-800 capitalize">
+                            {activeTab.replace('-', ' ')}
+                        </h2>
+                    </div>
                 </header>
 
-                <div className="p-8 max-w-7xl mx-auto">
-                    <div className="mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800 capitalize">
-                            {activeTab.replace('-', ' ')}
-                        </h1>
-                        <p className="text-gray-500">Welcome, {user?.email}</p>
-                    </div>
-
-                    {message.text && (
-                        <div className={`mb-4 p-4 rounded-lg ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                            {message.text}
-                        </div>
-                    )}
-
-                    {activeTab === 'create-user' && (
-                        <div className="bg-white p-8 rounded-2xl shadow-sm max-w-2xl border border-gray-100">
-                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                                <p className="text-sm text-yellow-700">
-                                    <strong>Note:</strong> Creating a new user will sign them in immediately. You will be logged out.
-                                </p>
+                <div className="flex-1 overflow-auto p-4 md:p-8">
+                    <div className="max-w-6xl mx-auto">
+                        {message.text && (
+                            <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${message.type === 'error'
+                                ? 'bg-red-50 border-red-100 text-red-700'
+                                : 'bg-green-50 border-green-100 text-green-700'}`}>
+                                {message.text}
                             </div>
-                            <form onSubmit={handleCreateUser} className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                        <input type="email" required value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} className="form-input" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                                        <input type="password" required value={createForm.password} onChange={e => setCreateForm({ ...createForm, password: e.target.value })} className="form-input" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                                        <input type="text" required value={createForm.name} onChange={e => setCreateForm({ ...createForm, name: e.target.value })} className="form-input" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                                        <select value={createForm.role} onChange={e => setCreateForm({ ...createForm, role: e.target.value })} className="form-input">
-                                            <option value="student">Student</option>
-                                            <option value="teacher">Teacher</option>
-                                            <option value="admin">Admin</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                {createForm.role === 'student' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Roll Num</label>
-                                            <input type="text" required value={createForm.rollNumber} onChange={e => setCreateForm({ ...createForm, rollNumber: e.target.value })} className="form-input" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
-                                            <input type="text" required value={createForm.class} onChange={e => setCreateForm({ ...createForm, class: e.target.value })} className="form-input" />
-                                        </div>
-                                    </div>
-                                )}
-                                <button disabled={loading} type="submit" className="btn-primary w-full">
-                                    {loading ? "Creating..." : "Create User"}
-                                </button>
-                            </form>
-                        </div>
-                    )}
+                        )}
 
-                    {activeTab !== 'create-user' && renderUserTable()}
+                        {activeTab === 'create-user' ? (
+                            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 max-w-3xl animate-fadeIn">
+                                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                                    <div className="bg-blue-50 p-3 rounded-lg text-blue-600">
+                                        <FaUserPlus size={20} />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-800">Create New Account</h3>
+                                </div>
+
+                                <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-4 mb-6">
+                                    <p className="text-sm text-yellow-800 flex items-start gap-2">
+                                        <span className="font-bold">Note:</span> Creating a new user will sign them in immediately. You will be logged out of this admin account.
+                                    </p>
+                                </div>
+
+                                <form onSubmit={handleCreateUser} className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                                            <input
+                                                type="email"
+                                                required
+                                                value={createForm.email}
+                                                onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
+                                                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                                placeholder="user@example.com"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                                            <input
+                                                type="password"
+                                                required
+                                                value={createForm.password}
+                                                onChange={e => setCreateForm({ ...createForm, password: e.target.value })}
+                                                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                                placeholder="••••••••"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={createForm.name}
+                                                onChange={e => setCreateForm({ ...createForm, name: e.target.value })}
+                                                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                                placeholder="John Doe"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                                            <div className="relative">
+                                                <select
+                                                    value={createForm.role}
+                                                    onChange={e => setCreateForm({ ...createForm, role: e.target.value })}
+                                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none bg-white"
+                                                >
+                                                    <option value="student">Student</option>
+                                                    <option value="teacher">Teacher</option>
+                                                    <option value="admin">Admin</option>
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                                                    <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {createForm.role === 'student' && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-gray-50 rounded-xl border border-gray-100">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Roll Number</label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={createForm.rollNumber}
+                                                    onChange={e => setCreateForm({ ...createForm, rollNumber: e.target.value })}
+                                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                                    placeholder="e.g. CS-2022-001"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Class / Section</label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={createForm.class}
+                                                    onChange={e => setCreateForm({ ...createForm, class: e.target.value })}
+                                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                                    placeholder="e.g. BSCS 4-B"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="pt-4">
+                                        <button
+                                            disabled={loading}
+                                            type="submit"
+                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed"
+                                        >
+                                            {loading ? "Creating Account..." : "Create User Account"}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        ) : (
+                            renderUserTable()
+                        )}
+                    </div>
                 </div>
             </main>
 
             {/* Edit Modal */}
             {editingUser && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Edit User</h2>
-                            <button onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-gray-600"><FaTimes /></button>
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <h2 className="text-lg font-bold text-gray-800">Edit User Details</h2>
+                            <button onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <FaTimes size={20} />
+                            </button>
                         </div>
-                        <form onSubmit={handleUpdateUser} className="space-y-4">
+                        <form onSubmit={handleUpdateUser} className="p-6 space-y-4">
                             <div>
-                                <label className="form-label">Name</label>
-                                <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="form-input" />
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
+                                <input
+                                    type="text"
+                                    value={editForm.name}
+                                    onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                />
                             </div>
                             {editingUser.role === 'student' && (
                                 <>
                                     <div>
-                                        <label className="form-label">Roll Number</label>
-                                        <input type="text" value={editForm.rollNumber} onChange={e => setEditForm({ ...editForm, rollNumber: e.target.value })} className="form-input" />
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Roll Number</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.rollNumber}
+                                            onChange={e => setEditForm({ ...editForm, rollNumber: e.target.value })}
+                                            className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                        />
                                     </div>
                                     <div>
-                                        <label className="form-label">Class</label>
-                                        <input type="text" value={editForm.class} onChange={e => setEditForm({ ...editForm, class: e.target.value })} className="form-input" />
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Class</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.class}
+                                            onChange={e => setEditForm({ ...editForm, class: e.target.value })}
+                                            className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                                        />
                                     </div>
                                 </>
                             )}
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setEditingUser(null)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
-                                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Update</button>
+                            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-50">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingUser(null)}
+                                    className="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-lg shadow-blue-600/20 transition-all"
+                                >
+                                    Save Changes
+                                </button>
                             </div>
                         </form>
                     </div>

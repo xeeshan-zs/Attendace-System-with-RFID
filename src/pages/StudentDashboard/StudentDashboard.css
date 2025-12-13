@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* StudentDashboard.css */
+
+.student-container {
+    @apply min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4;
+}
+
+.student-card {
+    @apply w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100;
+}
+
+.student-header {
+    @apply bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white;
+}
+
+.student-info {
+    @apply mt-2 text-blue-100 flex gap-4 text-sm;
+}
+
+.attendance-stats {
+    @apply grid grid-cols-2 gap-4 p-6 bg-blue-50/50 border-b border-gray-100;
+}
+
+.stat-item {
+    @apply flex flex-col items-center bg-white p-4 rounded-xl shadow-sm border border-blue-100;
+}
+
+.history-section {
+    @apply p-6;
+}
+
+.history-title {
+    @apply text-lg font-bold text-gray-800 mb-4 flex items-center gap-2;
+}
+
+.history-list {
+    @apply space-y-3;
+}
+
+.history-item {
+    @apply flex justify-between items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border-l-4 border-blue-500;
+}
+
+.access-denied {
+    @apply flex items-center justify-center h-screen text-xl text-red-600 font-bold bg-gray-50;
+}

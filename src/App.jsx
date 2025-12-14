@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import TeacherDashboard from './pages/TeacherDashboard/TeacherDashboard';
@@ -6,6 +6,7 @@ import StudentDashboard from './pages/StudentDashboard/StudentDashboard';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import AboutUs from './pages/AboutUs/AboutUs';
 import { useAuth } from './hooks/useAuth';
+import SplashScreen from './components/SplashScreen';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, role, loading } = useAuth();
@@ -18,6 +19,12 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 };
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
+
   return (
     <Router>
       <Routes>

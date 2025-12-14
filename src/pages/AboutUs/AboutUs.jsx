@@ -41,7 +41,7 @@ const AboutUs = () => {
             name: "Urooj Nisar",
             role: "Hardware Engineer",
             contribution: "Designed and implemented the RFID attendance circuit. Ensured seamless hardware integration.",
-            image: "/assets/team_urooj.png"
+            image: "/assets/team_urooj_design.png"
         },
         {
             name: "Eman Fatima",

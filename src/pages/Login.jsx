@@ -16,7 +16,7 @@ const Login = () => {
     // Application Modal State
     const [showAppModal, setShowAppModal] = useState(false);
     const [appForm, setAppForm] = useState({
-        name: '', email: '', password: '', role: 'student', details: '', message: ''
+        name: '', email: '', password: '', role: 'student', details: '', message: '', rollNumber: '', className: ''
     });
     const [appLoading, setAppLoading] = useState(false);
 
@@ -78,7 +78,7 @@ const Login = () => {
             });
             alert("Application submitted successfully! The admin will review it shortly.");
             setShowAppModal(false);
-            setAppForm({ name: '', email: '', password: '', role: 'student', details: '', message: '' });
+            setAppForm({ name: '', email: '', password: '', role: 'student', details: '', message: '', rollNumber: '', className: '' });
         } catch (err) {
             console.error(err);
             alert("Failed to submit application.");
@@ -266,17 +266,38 @@ const Login = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 mb-1">
-                                    {appForm.role === 'student' ? 'Roll No & Class' : 'Subject / Department'}
-                                </label>
-                                <input
-                                    type="text" required
-                                    placeholder={appForm.role === 'student' ? 'e.g. CS-101, BSCS 3-A' : 'e.g. Computer Science'}
-                                    value={appForm.details} onChange={e => setAppForm({ ...appForm, details: e.target.value })}
-                                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none"
-                                />
-                            </div>
+                            {appForm.role === 'student' ? (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 mb-1">Roll Number</label>
+                                        <input
+                                            type="text" required
+                                            placeholder="e.g. CS-370"
+                                            value={appForm.rollNumber} onChange={e => setAppForm({ ...appForm, rollNumber: e.target.value })}
+                                            className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 mb-1">Class</label>
+                                        <input
+                                            type="text" required
+                                            placeholder="e.g. BSCS-3B"
+                                            value={appForm.className} onChange={e => setAppForm({ ...appForm, className: e.target.value })}
+                                            className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 mb-1">Subject / Department</label>
+                                    <input
+                                        type="text" required
+                                        placeholder="e.g. Computer Science"
+                                        value={appForm.details} onChange={e => setAppForm({ ...appForm, details: e.target.value })}
+                                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                            )}
 
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 mb-1">Message (Optional)</label>

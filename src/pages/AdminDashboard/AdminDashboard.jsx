@@ -3,8 +3,9 @@ import { useAuth } from '../../hooks/useAuth';
 import './AdminDashboard.css';
 import { FaUsers, FaClipboardList, FaSignOutAlt, FaTimes, FaCheck, FaTrash, FaBars, FaChalkboardTeacher, FaUserGraduate, FaUserShield, FaUserPlus, FaSearch, FaUniversity, FaEdit, FaKey } from 'react-icons/fa';
 import { auth, db } from '../../firebase';
-import { collection, getDocs, query, where, updateDoc, doc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { collection, getDocs, query, where, updateDoc, doc, deleteDoc, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { initializeApp, deleteApp } from "firebase/app";
 
 const AdminDashboard = () => {
     const { user, role, loading: authLoading } = useAuth();
@@ -18,7 +19,10 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(false);
 
     // Create User Form State
-    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'student', department: '', phone: '' });
+    const [newUser, setNewUser] = useState({
+        name: '', email: '', password: '', role: 'student',
+        department: '', phone: '', rollNumber: '', className: ''
+    });
 
     // Edit User State
     const [editingUser, setEditingUser] = useState(null);
@@ -49,7 +53,6 @@ const AdminDashboard = () => {
                 const snapshot = await getDocs(q);
                 setApplications(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
             } else if (['teachers', 'students', 'admins'].includes(activeTab)) {
-                // Map tab name to role name if different, but here they match (except 'admins' -> 'admin')
                 const targetRole = activeTab === 'admins' ? 'admin' : (activeTab === 'teachers' ? 'teacher' : 'student');
                 const q = query(collection(db, "users"), where("role", "==", targetRole));
                 const snapshot = await getDocs(q);
@@ -63,96 +66,52 @@ const AdminDashboard = () => {
 
     const handleLogout = () => auth.signOut();
 
-    const handleApproveApp = async (app) => {
-        if (!window.confirm(`Approve application for ${app.name}? This will create their account immediately.`)) return;
+    const createUserInAuth = async (email, password) => {
+        let secondaryApp = null;
         try {
-            // 1. Create User in Auth
-            // WARNING: createUserWithEmailAndPassword signs the new user in immediately.
-            // In a real production app, you should use a Cloud Function (Admin SDK) to create users without signing out the admin.
-            // For this project, we will handle the re-login or warn the user.
+            // Initialize a secondary app with the same config as the main app
+            const firebaseConfig = auth.app.options;
+            secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+            const secondaryAuth = getAuth(secondaryApp);
 
-            // However, to keep it simple for this prototype, checking if we can do secondary app instance or just use the current auth and accept the sign-out risk or use a workaround.
-            // Workaround: We can't easily avoid sign-in on client SDK. 
-            // Better approach for Client SDK only: 
-            // We will just create the user doc in 'users' collection and mark application as approved. 
-            // The USER (Admin) explicitly asked for "proper account is made". 
-            // So we MUST try to create the Auth user.
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+            const newUser = userCredential.user;
 
-            // Using a temporary secondary app to avoid logging out the admin
-            // This is a known pattern for client-side admin panels without backend
+            await deleteApp(secondaryApp);
+            return newUser.uid;
+        } catch (error) {
+            if (secondaryApp) await deleteApp(secondaryApp);
+            throw error;
+        }
+    };
 
-            // To do this simply without complex secondary app initialization:
-            // We will proceed with the understanding that this is a prototype.
-            // Let's try to just create the user and see if it works, or inform the admin.
+    const handleApproveApp = async (app) => {
+        if (!window.confirm(`Approve application for ${app.name}? This will create a Firestore record linked to a new Auth account.`)) return;
+        try {
+            // 1. Create Auth User
+            const uid = await createUserInAuth(app.email, app.password);
 
-            // actually, since we don't have secondary app setup, let's just create the firestore record 
-            // AND alert the admin that they might need to use the console OR we can try to use a cloud function if available? No cloud functions here.
-
-            // LET'S IMPLEMENT THE HACK: initialize a second app instance to create user without logging out.
-            // We need to import 'initializeApp' from firebase/app
-
-            alert("Auto-creation of Auth users requires a backend to avoid logging you out. I will create the Firestore record and mark it approved. Please manually add the user to Authentication in Firebase Console with the password: " + app.password);
-
-            // Create User Doc
-            await addDoc(collection(db, "users"), {
+            // 2. Create Firestore Document with UID
+            const userData = {
                 name: app.name,
                 email: app.email,
                 role: app.role,
-                department: app.details || '',
                 createdAt: serverTimestamp(),
-                // Store password temporarily or encrypted? NO. Security risk.
-                // We rely on the admin seeing the password in the application review or manually adding it.
-            });
+            };
 
-            // Actually, the user asked for this feature. Let's assume we can't do it perfectly client-side without backend. 
-            // BUT, we can save the password in the user doc (insecure but works for prototype) OR just rely on the manual step.
+            if (app.role === 'student') {
+                userData.rollNumber = app.rollNumber || '';
+                userData.class = app.className || ''; // Note: using 'class' in DB as requested, 'className' in form
+            } else {
+                userData.department = app.details || '';
+            }
 
-            // WAIT, if I use `createUserWithEmailAndPassword` it WILL sign me out.
-            // The only way is using a second Firebase App instance.
+            await setDoc(doc(db, "users", uid), userData);
 
-            // Let's stick to the safest path: Create Firestore Doc, Approve App.
-            // AND we will add a 'password' field to the Firestore doc so the user can 'see' it? No bad idea.
-
-            // COMPROMISE: We will just update the logic to create the Firestore User Document now.
-
+            // 3. Update Application Status
             await updateDoc(doc(db, "applications", app.id), { status: 'approved' });
 
-            // Create the user document in 'users' collection so they exist in the system
-            // We use 'addDoc' effectively creating a new ID, or we should use the Auth UID if we could get it.
-            // Since we can't get Auth UID without creating Auth User, we will just create a doc.
-            // When the user eventually signs up/logs in (if admin creates auth), we might need to sync.
-
-            // Simpler: Just mark as approved.
-
-            // RE-READING REQUEST: "when the application is approved a proper account is made which can be logged in by the use"
-            // This implies automagical creation.
-
-            /* 
-               Client-side only solution for "Create user without logout":
-               This is very hard. 
-               I will assume the user accepts that I cannot do this 100% securely/cleanly without a backend.
-               I will attempt to just store the data in Firestore User collection.
-               The "Login" process checks Firestore.
-               
-               Ref: Login.jsx: signInWithEmailAndPassword(auth, email, password)
-               This REQUIRES the user to be in Firebase Auth.
-               
-               To solve this, I will add a text to the alert showing the password so Admin can copy it to Firebase Console.
-            */
-
-            // ACTUALLY, I can try to use the secondary app trick if I had the config.
-            // I will just add the Firestore record and tell the admin.
-
-            await addDoc(collection(db, "users"), {
-                name: app.name,
-                email: app.email,
-                role: app.role,
-                department: app.details,
-                createdAt: serverTimestamp()
-            });
-
-            alert(`Application Approved!\n\nUser added to Firestore Database.\n\nIMPORTANT: You must manually create the user in Firebase Authentication Console.\nEmail: ${app.email}\nPassword: ${app.password}`);
-
+            alert(`Application Approved!\nUser created with UID: ${uid}`);
             fetchData();
         } catch (error) {
             console.error(error);
@@ -183,22 +142,31 @@ const AdminDashboard = () => {
     const handleCreateUser = async (e) => {
         e.preventDefault();
         try {
-            // Note: Creating a user in Firebase Auth requires a secondary app or cloud function to avoid logging out the admin.
-            // For this demo, we will just add to Firestore 'users' collection or warn the user.
-            // Ideally: await createUserWithEmailAndPassword(auth, newUser.email, newUser.password); 
-            // BUT this signs in the new user immediately. 
+            // 1. Create Auth User
+            const uid = await createUserInAuth(newUser.email, newUser.password);
 
-            // So we will just add to Firestore for record keeping in this prototype
-            await addDoc(collection(db, "users"), {
+            // 2. Prepare Data
+            const userData = {
                 name: newUser.name,
                 email: newUser.email,
                 role: newUser.role,
-                department: newUser.department || '',
-                phone: newUser.phone || '',
-                createdAt: serverTimestamp()
-            });
-            alert("User record created in Firestore! (Note: Auth account must be created separately in Firebase Console to allow login)");
-            setNewUser({ name: '', email: '', password: '', role: 'student', department: '', phone: '' });
+                createdAt: serverTimestamp(),
+            };
+
+            // Add role-specific fields
+            if (newUser.role === 'student') {
+                userData.class = newUser.className;
+                userData.rollNumber = newUser.rollNumber;
+            } else {
+                userData.department = newUser.department;
+                userData.phone = newUser.phone;
+            }
+
+            // 3. Write to Firestore
+            await setDoc(doc(db, "users", uid), userData);
+
+            alert("User successfully created with login access!");
+            setNewUser({ name: '', email: '', password: '', role: 'student', department: '', phone: '', rollNumber: '', className: '' });
         } catch (error) {
             console.error(error);
             alert("Error creating user: " + error.message);
@@ -475,17 +443,33 @@ const AdminDashboard = () => {
                                                 </div>
                                             </div>
 
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">Department / Class Details</label>
-                                                <input type="text" placeholder="e.g. Computer Science / CS-301" className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none" value={newUser.department} onChange={e => setNewUser({ ...newUser, department: e.target.value })} />
-                                            </div>
+                                            {newUser.role === 'student' ? (
+                                                <div className="grid grid-cols-2 gap-5">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">Roll Number</label>
+                                                        <input required type="text" placeholder="e.g. CS-370" className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                                            value={newUser.rollNumber} onChange={e => setNewUser({ ...newUser, rollNumber: e.target.value })} />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">Class / Section</label>
+                                                        <input required type="text" placeholder="e.g. BSCS-3B" className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                                            value={newUser.className} onChange={e => setNewUser({ ...newUser, className: e.target.value })} />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">Department</label>
+                                                    <input type="text" placeholder="e.g. Computer Science" className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                                        value={newUser.department} onChange={e => setNewUser({ ...newUser, department: e.target.value })} />
+                                                </div>
+                                            )}
 
                                             <div className="pt-4">
                                                 <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-600/20 transition-all transform active:scale-95">
                                                     Create User
                                                 </button>
                                                 <p className="mt-3 text-center text-xs text-gray-500">
-                                                    Note: This creates a database record. You must also create the Auth user in Firebase Console to allow login.
+                                                    Note: This creates a fully synchronized user account (Auth + Database).
                                                 </p>
                                             </div>
                                         </form>

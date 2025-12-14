@@ -135,6 +135,18 @@ const TeacherDashboard = () => {
     }, [attendance, selectedDate, selectedClass]);
 
 
+    // Derived State: Check if attendance is already marked for selected class/date
+    const isAttendanceMarked = useMemo(() => {
+        if (!selectedClass || !selectedDate || !attendance.length) return false;
+        const dateObj = new Date(selectedDate);
+        const formattedInputDate = formatDateDDMMYYYY(dateObj);
+
+        return attendance.some(record =>
+            record.class === selectedClass &&
+            record.date === formattedInputDate
+        );
+    }, [attendance, selectedClass, selectedDate]);
+
     // Handlers
     const handleLogout = () => auth.signOut();
 
@@ -214,6 +226,39 @@ const TeacherDashboard = () => {
         }));
     };
 
+    // Helper: Format Time Readable
+    const formatTimeReadable = (timeStr) => {
+        if (!timeStr) return "--:--";
+
+        // Case 1: Handle ISO Date Strings (e.g. from Sheets JSON)
+        if (timeStr.includes('T') || timeStr.includes('-')) {
+            const d = new Date(timeStr);
+            if (!isNaN(d.getTime())) {
+                return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            }
+        }
+
+        // Case 2: Already 12-hour format
+        if (/AM|PM/i.test(timeStr)) return timeStr;
+
+        // Case 3: Simple 24-hour HH:mm string
+        const parts = timeStr.split(':');
+        if (parts.length >= 2) {
+            let hours = parseInt(parts[0], 10);
+            let minutes = parseInt(parts[1], 10);
+
+            if (!isNaN(hours) && !isNaN(minutes)) {
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12;
+                hours = hours ? hours : 12; // 0 becomes 12
+                const mStr = minutes.toString().padStart(2, '0');
+                return `${hours}:${mStr} ${ampm}`;
+            }
+        }
+
+        return timeStr;
+    };
+
     const submitAttendance = async () => {
         if (!selectedClass) return alert("Select a class first");
 
@@ -228,7 +273,8 @@ const TeacherDashboard = () => {
         setLoading(true);
         const dateObj = new Date(selectedDate);
         const formattedDate = formatDateDDMMYYYY(dateObj);
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // FORCE 12-Hour Format: 11:30 PM
+        const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
         const promises = studentsToMark.map(student => {
             return addAttendance({
@@ -242,6 +288,7 @@ const TeacherDashboard = () => {
 
         await Promise.all(promises);
         setLoading(false);
+        // Standardize reset without alert (same as bulk action philosophy)
         alert("Attendance submitted successfully!");
         setAttendanceState({});
         setRefreshTrigger(p => p + 1);
@@ -407,11 +454,24 @@ const TeacherDashboard = () => {
                         {/* --- TAB: TAKE ATTENDANCE --- */}
                         {activeTab === 'take-attendance' && (
                             <div className="animate-fadeIn">
+                                {isAttendanceMarked && (
+                                    <div className="mb-6 bg-yellow-500/10 border border-yellow-500/20 text-yellow-200 p-4 rounded-xl flex items-center gap-3 animate-pulse">
+                                        <div className="bg-yellow-500/20 p-2 rounded-full">
+                                            <FaCalendarCheck size={20} className="text-yellow-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-sm">Attendance Already Marked!</p>
+                                            <p className="text-xs text-yellow-200/70">Records exist for {selectedClass} on this date. Submitting again will add duplicates or update timestamps.</p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {!selectedClass ? (
                                     <div className="text-center py-20 bg-white/5 backdrop-blur-md rounded-2xl border border-dashed border-white/20">
                                         <FaChalkboardTeacher className="mx-auto text-gray-500 text-6xl mb-4" />
                                         <p className="text-gray-400 text-lg font-medium">Please select a class above to start marking attendance.</p>
                                     </div>
+
 
                                 ) : filteredRoster.length === 0 ? (
                                     <div className="text-center py-20 bg-white/5 backdrop-blur-md rounded-2xl border border-dashed border-white/20">
@@ -602,7 +662,7 @@ const TeacherDashboard = () => {
                                                 filteredHistory.map((record, index) => (
                                                     <tr key={index} className="hover:bg-white/5 transition-colors">
                                                         <td className="p-4 font-medium text-white">{record.date}</td>
-                                                        <td className="p-4 text-gray-400 text-xs font-mono">{record.time}</td>
+                                                        <td className="p-4 text-gray-400 text-xs font-mono">{formatTimeReadable(record.time)}</td>
                                                         <td className="p-4 font-mono text-gray-300">{record.rollNumber}</td>
                                                         <td className="p-4 text-white">{record.name}</td>
                                                         <td className="p-4 text-gray-300">{record.class}</td>

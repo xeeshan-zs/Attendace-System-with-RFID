@@ -108,6 +108,21 @@ const AdminDashboard = () => {
 
             await setDoc(doc(db, "users", uid), userData);
 
+            // 4. If Student, Add to Class Roster (Auto-Enrollment)
+            if (app.role === 'student') {
+                try {
+                    await addDoc(collection(db, "roster_students"), {
+                        name: app.name,
+                        rollNumber: app.rollNumber,
+                        class: app.className,
+                        uid: uid
+                    });
+                } catch (rosterError) {
+                    console.error("Error adding to roster:", rosterError);
+                    alert("User created, but failed to add to class roster.");
+                }
+            }
+
             // 3. Update Application Status
             await updateDoc(doc(db, "applications", app.id), { status: 'approved' });
 

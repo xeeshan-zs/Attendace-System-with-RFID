@@ -41,7 +41,7 @@ const AboutUs = () => {
     const team = [
         {
             name: "Zeeshan Sarfraz",
-            role: "Team Lead & Full Stack Developer",
+            role: "Team Lead ",
             contribution: "Conceptualized the project, designed the architecture, and developed this website. Led the team to success.",
             image: "/assets/team_zeeshan.png",
             github: "https://github.com/xeeshan-zs",
@@ -49,16 +49,17 @@ const AboutUs = () => {
         },
         {
             name: "Urooj Nisar",
-            role: "Hardware Engineer",
+            role: "Circuit Expert",
             contribution: "Designed and implemented the RFID attendance circuit. Ensured seamless hardware integration.",
             image: "/assets/team_urooj_design.png",
             linkedin: "https://www.linkedin.com/in/urooj-nisar-99b60a34b?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app"
         },
         {
             name: "Eman Fatima",
-            role: "Data & Integration Specialist",
+            role: "Data Sheet Expert",
             contribution: "Created the Google Sheet database and established its linkage to the ESP8266 and the website.",
-            image: "/assets/team_eman.png"
+            image: "/assets/team_eman.png",
+            linkedin: "https://www.linkedin.com/in/eman-fatima-645641342?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app"
         }
     ];
 

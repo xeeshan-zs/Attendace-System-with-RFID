@@ -2,13 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaGithub, FaLinkedin } from 'react-icons/fa';
 
-const TeamCard = ({ name, role, contribution, image }) => (
+const TeamCard = ({ name, role, contribution, image, github, linkedin }) => (
     <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden transform hover:-translate-y-2 group">
         <div className="relative h-64 overflow-hidden">
             <img
                 src={image}
                 alt={name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300" />
 
@@ -20,8 +20,16 @@ const TeamCard = ({ name, role, contribution, image }) => (
         <div className="p-6 pt-2">
             <p className="text-gray-300 text-sm leading-relaxed mb-4">{contribution}</p>
             <div className="flex gap-3">
-                <button className="text-gray-400 hover:text-white transition-colors"><FaGithub size={20} /></button>
-                <button className="text-gray-400 hover:text-blue-400 transition-colors"><FaLinkedin size={20} /></button>
+                {github && (
+                    <a href={github} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
+                        <FaGithub size={20} />
+                    </a>
+                )}
+                {linkedin && (
+                    <a href={linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors">
+                        <FaLinkedin size={20} />
+                    </a>
+                )}
             </div>
         </div>
     </div>
@@ -35,13 +43,16 @@ const AboutUs = () => {
             name: "Zeeshan Sarfraz",
             role: "Team Lead & Full Stack Developer",
             contribution: "Conceptualized the project, designed the architecture, and developed this website. Led the team to success.",
-            image: "/assets/team_zeeshan.png"
+            image: "/assets/team_zeeshan.png",
+            github: "https://github.com/xeeshan-zs",
+            linkedin: "https://www.linkedin.com/in/xeeshan-zs"
         },
         {
             name: "Urooj Nisar",
             role: "Hardware Engineer",
             contribution: "Designed and implemented the RFID attendance circuit. Ensured seamless hardware integration.",
-            image: "/assets/team_urooj_design.png"
+            image: "/assets/team_urooj_design.png",
+            linkedin: "https://www.linkedin.com/in/urooj-nisar-99b60a34b?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app"
         },
         {
             name: "Eman Fatima",

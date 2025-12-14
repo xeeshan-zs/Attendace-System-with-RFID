@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import TeacherDashboard from './pages/TeacherDashboard/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard/StudentDashboard';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
+import AboutUs from './pages/AboutUs/AboutUs';
 import { useAuth } from './hooks/useAuth';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -21,6 +22,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/about-us" element={<AboutUs />} />
 
         <Route
           path="/teacher"

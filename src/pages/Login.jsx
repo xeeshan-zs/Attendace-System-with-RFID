@@ -3,7 +3,7 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/aut
 import { auth, db } from '../firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { FaUserLock, FaSignInAlt, FaUniversity, FaEnvelope, FaLock, FaCircle, FaPaperPlane, FaTimes } from 'react-icons/fa';
+import { FaUserLock, FaSignInAlt, FaUniversity, FaEnvelope, FaLock, FaCircle, FaPaperPlane, FaTimes, FaInfoCircle } from 'react-icons/fa';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -16,7 +16,7 @@ const Login = () => {
     // Application Modal State
     const [showAppModal, setShowAppModal] = useState(false);
     const [appForm, setAppForm] = useState({
-        name: '', email: '', role: 'student', details: '', message: ''
+        name: '', email: '', password: '', role: 'student', details: '', message: ''
     });
     const [appLoading, setAppLoading] = useState(false);
 
@@ -78,7 +78,7 @@ const Login = () => {
             });
             alert("Application submitted successfully! The admin will review it shortly.");
             setShowAppModal(false);
-            setAppForm({ name: '', email: '', role: 'student', details: '', message: '' });
+            setAppForm({ name: '', email: '', password: '', role: 'student', details: '', message: '' });
         } catch (err) {
             console.error(err);
             alert("Failed to submit application.");
@@ -99,6 +99,17 @@ const Login = () => {
 
             {/* Grid Pattern Overlay */}
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5"></div>
+
+            {/* About Us Navigation */}
+            <div className="absolute top-6 right-6 z-20">
+                <button
+                    onClick={() => navigate('/about-us')}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-md text-gray-300 hover:text-white transition-all duration-300"
+                >
+                    <FaInfoCircle />
+                    <span className="font-medium">About Us</span>
+                </button>
+            </div>
 
             {/* Glass Card */}
             <div className="relative z-10 w-full max-w-md p-6 mx-4">
@@ -228,6 +239,16 @@ const Login = () => {
                                         className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none"
                                     />
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-1">Desired Password</label>
+                                <input
+                                    type="password" required minLength={6}
+                                    placeholder="At least 6 characters"
+                                    value={appForm.password} onChange={e => setAppForm({ ...appForm, password: e.target.value })}
+                                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-blue-500 outline-none"
+                                />
                             </div>
 
                             <div>

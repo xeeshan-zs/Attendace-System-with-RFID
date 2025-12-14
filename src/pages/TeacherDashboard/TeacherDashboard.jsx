@@ -56,21 +56,55 @@ const TeacherDashboard = () => {
 
     const loadInitialData = async () => {
         setLoading(true);
-        // Load Sheets Data
-        const sheetsData = await fetchAttendance();
-        setAttendance(sheetsData);
-
-        // Load Roster Data
         try {
+            // 1. Load Sheets Data (History)
+            const sheetsData = await fetchAttendance();
+            setAttendance(sheetsData);
+
+            // 2. Load Firestore Data (Database Roster)
             const q = query(collection(db, "roster_students"));
             const querySnapshot = await getDocs(q);
-            const loadedRoster = [];
+            const firestoreRoster = [];
             querySnapshot.forEach((doc) => {
-                loadedRoster.push({ id: doc.id, ...doc.data() });
+                firestoreRoster.push({ id: doc.id, ...doc.data() });
             });
-            setRoster(loadedRoster);
+
+            // 3. Merge & Deduplicate (Firestore takes precedence)
+            const combinedMap = new Map();
+
+            // First: Add students from Sheets (History)
+            // We use 'rollNumber' as the unique key.
+            sheetsData.forEach(record => {
+                if (record.rollNumber && !combinedMap.has(record.rollNumber)) {
+                    combinedMap.set(record.rollNumber, {
+                        id: `sheet-${record.rollNumber}`, // Temporary ID for sheet-only records
+                        name: record.name,
+                        rollNumber: record.rollNumber,
+                        class: record.class,
+                        source: 'sheet' // internal flag
+                    });
+                }
+            });
+
+            // Second: Overwrite with Firestore students (Database)
+            firestoreRoster.forEach(student => {
+                combinedMap.set(student.rollNumber, {
+                    ...student,
+                    source: 'firestore'
+                });
+            });
+
+            // Convert back to array and sort by Class then Roll Number
+            const combinedRoster = Array.from(combinedMap.values()).sort((a, b) => {
+                if (a.class !== b.class) return a.class.localeCompare(b.class);
+                return a.rollNumber.localeCompare(b.rollNumber);
+            });
+
+            setRoster(combinedRoster);
+
         } catch (error) {
-            console.error("Error loading roster:", error);
+            console.error("Error loading data:", error);
+            alert("Failed to load dashboard data.");
         }
         setLoading(false);
     };
@@ -378,6 +412,7 @@ const TeacherDashboard = () => {
                                         <FaChalkboardTeacher className="mx-auto text-gray-500 text-6xl mb-4" />
                                         <p className="text-gray-400 text-lg font-medium">Please select a class above to start marking attendance.</p>
                                     </div>
+
                                 ) : filteredRoster.length === 0 ? (
                                     <div className="text-center py-20 bg-white/5 backdrop-blur-md rounded-2xl border border-dashed border-white/20">
                                         <FaUsers className="mx-auto text-gray-500 text-6xl mb-4" />
@@ -386,6 +421,30 @@ const TeacherDashboard = () => {
                                     </div>
                                 ) : (
                                     <>
+                                        {/* Bulk Actions */}
+                                        <div className="flex flex-wrap gap-3 mb-6 justify-end">
+                                            <button
+                                                onClick={() => {
+                                                    const newState = { ...attendanceState };
+                                                    filteredRoster.forEach(s => newState[s.rollNumber] = true);
+                                                    setAttendanceState(newState);
+                                                }}
+                                                className="px-4 py-2 bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/30 rounded-lg flex items-center gap-2 font-bold text-sm transition-all"
+                                            >
+                                                <FaCheck /> Mark All Present
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const newState = { ...attendanceState };
+                                                    filteredRoster.forEach(s => delete newState[s.rollNumber]);
+                                                    setAttendanceState(newState);
+                                                }}
+                                                className="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-lg flex items-center gap-2 font-bold text-sm transition-all"
+                                            >
+                                                <FaTimes /> Unmark All
+                                            </button>
+                                        </div>
+
                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-24">
                                             {filteredRoster.map(student => {
                                                 const isPresent = !!attendanceState[student.rollNumber];
@@ -558,72 +617,74 @@ const TeacherDashboard = () => {
 
                     </div>
                 </div>
-            </main>
+            </main >
 
             {/* Add/Edit Student Modal (Roster) */}
-            {showRosterModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-                    <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md p-6 transform transition-all">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-white">{isEditing ? "Edit Student" : "Add Student to Roster"}</h2>
-                            <button onClick={() => setShowRosterModal(false)} className="text-gray-400 hover:text-white transition-colors">
-                                <FaTimes size={20} />
-                            </button>
+            {
+                showRosterModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+                        <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md p-6 transform transition-all">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-white">{isEditing ? "Edit Student" : "Add Student to Roster"}</h2>
+                                <button onClick={() => setShowRosterModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                                    <FaTimes size={20} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleRosterSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-300 mb-2">Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={rosterForm.name}
+                                        onChange={e => setRosterForm({ ...rosterForm, name: e.target.value })}
+                                        className="w-full px-4 py-2 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        placeholder="Full Name"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-300 mb-2">Roll Number</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={rosterForm.rollNumber}
+                                        onChange={e => setRosterForm({ ...rosterForm, rollNumber: e.target.value })}
+                                        className="w-full px-4 py-2 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        placeholder="e.g. CS-101"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-300 mb-2">Class</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={rosterForm.class}
+                                        onChange={e => setRosterForm({ ...rosterForm, class: e.target.value })}
+                                        className="w-full px-4 py-2 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        placeholder="e.g. BSCS 3-B"
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-700">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowRosterModal(false)}
+                                        className="px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700 font-medium transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 font-bold shadow-lg shadow-blue-600/20 transition-all"
+                                    >
+                                        {isEditing ? "Update Student" : "Add to Roster"}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                        <form onSubmit={handleRosterSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-300 mb-2">Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={rosterForm.name}
-                                    onChange={e => setRosterForm({ ...rosterForm, name: e.target.value })}
-                                    className="w-full px-4 py-2 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                    placeholder="Full Name"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-300 mb-2">Roll Number</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={rosterForm.rollNumber}
-                                    onChange={e => setRosterForm({ ...rosterForm, rollNumber: e.target.value })}
-                                    className="w-full px-4 py-2 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                    placeholder="e.g. CS-101"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-300 mb-2">Class</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={rosterForm.class}
-                                    onChange={e => setRosterForm({ ...rosterForm, class: e.target.value })}
-                                    className="w-full px-4 py-2 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                    placeholder="e.g. BSCS 3-B"
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-700">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowRosterModal(false)}
-                                    className="px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700 font-medium transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 font-bold shadow-lg shadow-blue-600/20 transition-all"
-                                >
-                                    {isEditing ? "Update Student" : "Add to Roster"}
-                                </button>
-                            </div>
-                        </form>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

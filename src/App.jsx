@@ -6,8 +6,6 @@ import StudentDashboard from './pages/StudentDashboard/StudentDashboard';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import AboutUs from './pages/AboutUs/AboutUs';
 import { useAuth } from './hooks/useAuth';
-import SplashScreen from './components/SplashScreen';
-
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, role, loading } = useAuth();
 
@@ -19,11 +17,18 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 };
 
 function App() {
-  const [showSplash, setShowSplash] = useState(true);
-
-  if (showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} />;
-  }
+  // Handle Splash Screen Fade Out
+  useEffect(() => {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+      setTimeout(() => {
+        splash.classList.add('fade-out');
+        setTimeout(() => {
+          splash.remove();
+        }, 500); // Wait for transition to finish
+      }, 2500); // Show splash for 2.5s
+    }
+  }, []);
 
   return (
     <Router>

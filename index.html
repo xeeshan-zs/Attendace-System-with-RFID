@@ -1,15 +1,160 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Attendance System</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance System</title>
+</head>
+
+<body>
+  <!-- Splash Screen (Instant Load) -->
+  <style>
+    #splash-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0f172a;
+      /* Slate 900 */
+      transition: opacity 0.5s ease-out, visibility 0.5s;
+    }
+
+    #splash-screen.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Background Gradients */
+    .splash-bg {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.15), transparent 40%),
+        radial-gradient(circle at 70% 80%, rgba(147, 51, 234, 0.15), transparent 40%);
+    }
+
+    /* Logo Animation */
+    .splash-logo-container {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: bounce-slow 2.5s infinite ease-in-out;
+    }
+
+    .splash-icon-box {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(to top right, #3b82f6, #9333ea);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      margin-bottom: 1.5rem;
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .splash-title {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.5rem;
+    }
+
+    .splash-subtitle {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 0.875rem;
+      color: #bfdbfe;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* Footer */
+    .splash-footer {
+      position: absolute;
+      bottom: 2.5rem;
+      text-align: center;
+      z-index: 10;
+    }
+
+    .splash-dev-label {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.25rem;
+    }
+
+    .splash-dev-name {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 1.125rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #60a5fa, #c084fc);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    @keyframes bounce-slow {
+
+      0%,
+      100% {
+        transform: translateY(-3%);
+      }
+
+      50% {
+        transform: translateY(3%);
+      }
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .8;
+      }
+    }
+  </style>
+
+  <div id="splash-screen">
+    <div class="splash-bg"></div>
+    <div class="splash-logo-container">
+      <div class="splash-icon-box">
+        <!-- FaUniversity Icon SVG -->
+        <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512" height="40px" width="40px"
+          xmlns="http://www.w3.org/2000/svg" style="color: white;">
+          <path
+            d="M96 0C43 0 0 43 0 96V416c0 53 43 96 96 96H384h32c17.7 0 32-14.3 32-32s-14.3-32-32-32V384c17.7 0 32-14.3 32-32V32c0-17.7-14.3-32-32-32H384 96zm0 384H352v64H96c-17.7 0-32-14.3-32-32s14.3-32 32-32zm32-240c0-8.8 7.2-16 16-16H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm16 48H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16s7.2-16 16-16z">
+          </path>
+        </svg>
+      </div>
+      <h1 class="splash-title">EduTrack</h1>
+      <p class="splash-subtitle">Smart Attendance</p>
+    </div>
+    <div class="splash-footer">
+      <div class="splash-dev-label">Developed by</div>
+      <div class="splash-dev-name">Zeeshan Sarfraz</div>
+    </div>
+  </div>
+
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

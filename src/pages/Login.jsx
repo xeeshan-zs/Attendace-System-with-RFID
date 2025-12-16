@@ -5,14 +5,27 @@ import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/fires
 import { useNavigate } from 'react-router-dom';
 import { FaUserLock, FaSignInAlt, FaUniversity, FaEnvelope, FaLock, FaCircle, FaPaperPlane, FaTimes, FaInfoCircle } from 'react-icons/fa';
 
+import { useAuth } from '../hooks/useAuth';
+
 const Login = () => {
+    const { user, role, loading: authLoading } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [rememberMe, setRememberMe] = useState(false);
+    const [rememberMe, setRememberMe] = useState(true); // Default to true
     const [error, setError] = useState('');
     const [info, setInfo] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    // Auto-redirect if already logged in
+    React.useEffect(() => {
+        if (!authLoading && user && role) {
+            if (role === 'teacher') navigate('/teacher');
+            else if (role === 'student') navigate('/student');
+            else if (role === 'admin') navigate('/admin');
+            else navigate('/teacher');
+        }
+    }, [user, role, authLoading, navigate]);
 
     // Application Modal State
     const [showAppModal, setShowAppModal] = useState(false);
@@ -27,25 +40,19 @@ const Login = () => {
         setInfo('');
         setLoading(true);
         try {
-            await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+            // Always set persistence to LOCAL (stay logged in) as per user request
+            await setPersistence(auth, browserLocalPersistence);
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            // Check role
+            // Redirect logic handled by useEffect, but we can also force it here for faster feedback
+            // checking document to avoid waiting for the hook update
             const userDoc = await getDoc(doc(db, "users", user.uid));
             if (userDoc.exists()) {
                 const role = userDoc.data().role;
-                if (role === 'teacher') {
-                    navigate('/teacher');
-                } else if (role === 'student') {
-                    navigate('/student');
-                } else if (role === 'admin') {
-                    navigate('/admin');
-                } else {
-                    navigate('/teacher'); // Default
-                }
-            } else {
-                setError("User data not found.");
+                if (role === 'teacher') navigate('/teacher');
+                else if (role === 'student') navigate('/student');
+                else if (role === 'admin') navigate('/admin');
             }
         } catch (err) {
             setError("Failed to login. Please check your credentials.");
@@ -168,16 +175,7 @@ const Login = () => {
                             />
                         </div>
 
-                        <div className="flex items-center justify-between text-xs text-blue-200">
-                            <label className="flex items-center cursor-pointer hover:text-white transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={rememberMe}
-                                    onChange={(e) => setRememberMe(e.target.checked)}
-                                    className="form-checkbox h-4 w-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-offset-gray-900 focus:ring-blue-500"
-                                />
-                                <span className="ml-2">Remember me</span>
-                            </label>
+                        <div className="flex items-center justify-end text-xs text-blue-200">
                             <button type="button" onClick={handleForgotPassword} className="hover:text-white transition-colors hover:underline">
                                 Forgot password?
                             </button>

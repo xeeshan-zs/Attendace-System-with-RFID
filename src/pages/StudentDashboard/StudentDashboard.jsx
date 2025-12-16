@@ -15,7 +15,7 @@ const StudentDashboard = () => {
     const [stats, setStats] = useState({ present: 0, totalClassDays: 0, percentage: 0, absent: 0 });
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     // Calendar State
@@ -236,7 +236,7 @@ const StudentDashboard = () => {
     const renderDashboard = () => (
         <div className="space-y-6 animate-fadeIn pb-8">
             <h2 className="text-2xl font-bold text-white mb-4">Dashboard Overview</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div className="bg-white/10 backdrop-blur-md p-5 rounded-xl border border-white/10 hover:bg-white/20 transition-all group">
                     <div className="flex justify-between items-start mb-2">
                         <div className="bg-blue-500/20 p-3 rounded-lg text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
@@ -325,7 +325,8 @@ const StudentDashboard = () => {
                 <FaHistory className="text-blue-400" /> Full Attendance History
             </h2>
 
-            <div className="overflow-x-auto">
+            {/* Desktop View (Table) */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="border-b border-white/10 text-gray-400 text-sm uppercase tracking-wider">
@@ -359,6 +360,40 @@ const StudentDashboard = () => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Mobile View (Cards) */}
+            <div className="md:hidden space-y-3">
+                {loading ? (
+                    <div className="p-8 text-center text-gray-400">Loading records...</div>
+                ) : attendance.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">No records found.</div>
+                ) : (
+                    attendance.map((record, index) => (
+                        <div key={index} className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                {/* Date Box */}
+                                <div className="bg-black/20 p-2 rounded-lg text-center min-w-[50px]">
+                                    <p className="text-xs text-gray-400 font-bold uppercase">{new Date(record.date.split('-').reverse().join('-')).toLocaleString('en-us', { month: 'short' })}</p>
+                                    <p className="text-lg font-bold text-white leading-none">{record.date.split('-')[0]}</p>
+                                </div>
+
+                                <div>
+                                    <p className="text-sm font-bold text-white flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Present
+                                    </p>
+                                    <p className="text-xs text-gray-400 font-mono mt-0.5">
+                                        {formatTimeReadable(record.time)}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="text-blue-400 bg-blue-500/10 p-2 rounded-full">
+                                <FaCheckDouble size={14} />
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
         </div>
     );
 
@@ -371,7 +406,7 @@ const StudentDashboard = () => {
 
             {/* Sidebar */}
             <aside
-                className={`fixed md:relative z-20 h-full w-72 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col justify-between
+                className={`fixed md:relative z-50 h-full w-72 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col justify-between
                 bg-white/5 backdrop-blur-xl border-r border-white/10
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 md:w-72'} 
                 ${isMobile && !isSidebarOpen ? '-translate-x-full' : ''}`}
@@ -441,7 +476,7 @@ const StudentDashboard = () => {
             {/* Overlay for mobile */}
             {isMobile && isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black/60 z-10 backdrop-blur-sm"
+                    className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
                     onClick={() => setIsSidebarOpen(false)}
                 ></div>
             )}

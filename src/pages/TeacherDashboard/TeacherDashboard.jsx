@@ -12,7 +12,7 @@ import { collection, addDoc, getDocs, query, where, deleteDoc, doc, updateDoc, w
 
 const TeacherDashboard = () => {
     const { user, role, loading: authLoading } = useAuth();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     // Global State
@@ -334,7 +334,7 @@ const TeacherDashboard = () => {
 
             {/* Sidebar */}
             <aside
-                className={`fixed md:relative z-20 h-full w-72 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col justify-between 
+                className={`fixed md:relative z-50 h-full w-72 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col justify-between 
                 bg-white/5 backdrop-blur-xl border-r border-white/10
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 md:w-72'} 
                 ${isMobile && !isSidebarOpen ? '-translate-x-full' : ''}`}
@@ -648,7 +648,7 @@ const TeacherDashboard = () => {
                                     </button>
                                 </div>
 
-                                <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/10 overflow-hidden">
+                                <div className="hidden md:block bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/10 overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="border-b border-white/10 text-gray-400 text-sm uppercase tracking-wider bg-white/5">
@@ -683,6 +683,39 @@ const TeacherDashboard = () => {
                                         </tbody>
                                     </table>
                                 </div>
+
+                                {/* Mobile Card View */}
+                                <div className="md:hidden space-y-3">
+                                    {((selectedClass ? filteredRoster : roster).length === 0) ? (
+                                        <div className="p-8 text-center text-gray-500 bg-white/5 rounded-xl border border-white/10">Roster is empty.</div>
+                                    ) : (
+                                        (selectedClass ? filteredRoster : roster).map(student => (
+                                            <div key={student.id} className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-xl flex items-center justify-between shadow-sm">
+                                                <div>
+                                                    <h4 className="font-bold text-white text-lg">{student.name}</h4>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-xs font-mono text-gray-400 bg-black/20 px-2 py-0.5 rounded">{student.rollNumber}</span>
+                                                        <span className="text-xs font-bold text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{student.class}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => openEditStudentModal(student)}
+                                                        className="p-3 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors"
+                                                    >
+                                                        <FaEdit size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteStudent(student.id)}
+                                                        className="p-3 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
+                                                    >
+                                                        <FaTrash size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -700,7 +733,7 @@ const TeacherDashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/10 overflow-hidden">
+                                <div className="hidden md:block bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/10 overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="border-b border-white/10 text-gray-400 text-sm uppercase tracking-wider bg-white/5">
@@ -727,6 +760,32 @@ const TeacherDashboard = () => {
                                             )}
                                         </tbody>
                                     </table>
+                                </div>
+
+                                {/* Mobile Card View */}
+                                <div className="md:hidden space-y-3">
+                                    {filteredHistory.length === 0 ? (
+                                        <div className="p-8 text-center text-gray-500 bg-white/5 rounded-xl border border-white/10">No records found.</div>
+                                    ) : (
+                                        filteredHistory.map((record, index) => (
+                                            <div key={index} className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-xl flex flex-col gap-2 shadow-sm">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h4 className="font-bold text-white text-lg">{record.name}</h4>
+                                                        <span className="text-xs font-mono text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{record.rollNumber}</span>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-gray-400 text-xs font-bold uppercase tracking-wider">{record.date}</div>
+                                                        <div className="text-white font-mono text-sm">{formatTimeReadable(record.time)}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-1 pt-2 border-t border-white/5 flex justify-between items-center">
+                                                    <span className="text-xs text-gray-500 uppercase font-bold">Class</span>
+                                                    <span className="text-sm text-gray-300 bg-white/5 px-2 py-1 rounded">{record.class}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
                         )}

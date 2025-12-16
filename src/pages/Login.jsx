@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { FaUserLock, FaSignInAlt, FaUniversity, FaEnvelope, FaLock, FaCircle, Fa
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [info, setInfo] = useState('');
     const [loading, setLoading] = useState(false);
@@ -26,6 +27,7 @@ const Login = () => {
         setInfo('');
         setLoading(true);
         try {
+            await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
@@ -168,7 +170,12 @@ const Login = () => {
 
                         <div className="flex items-center justify-between text-xs text-blue-200">
                             <label className="flex items-center cursor-pointer hover:text-white transition-colors">
-                                <input type="checkbox" className="form-checkbox h-4 w-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-offset-gray-900 focus:ring-blue-500" />
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="form-checkbox h-4 w-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-offset-gray-900 focus:ring-blue-500"
+                                />
                                 <span className="ml-2">Remember me</span>
                             </label>
                             <button type="button" onClick={handleForgotPassword} className="hover:text-white transition-colors hover:underline">

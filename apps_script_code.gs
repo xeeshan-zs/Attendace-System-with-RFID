@@ -22,7 +22,8 @@ function handleRequest(e) {
 
     if (!action || action === 'read') {
       // GET: Read all data
-      const rows = sheet.getDataRange().getValues();
+      // use getDisplayValues() to get the string representation (avoiding Timezone/Date object shifts)
+      const rows = sheet.getDataRange().getDisplayValues();
       const headers = rows.shift(); // Remove header row
       const data = rows.map((row, index) => {
         return {

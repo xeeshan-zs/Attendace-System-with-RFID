@@ -54,6 +54,31 @@ const TeacherDashboard = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Helper: Check Date Permissions
+    const getDateStatus = (dateStr) => {
+        if (!dateStr) return { allowed: false, message: "Select a date" };
+
+        const inputDate = new Date(dateStr);
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(today.getDate() - 1);
+
+        // Reset times for accurate date comparison
+        inputDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        yesterday.setHours(0, 0, 0, 0);
+
+        const isToday = inputDate.getTime() === today.getTime();
+        const isYesterday = inputDate.getTime() === yesterday.getTime();
+
+        if (isToday) return { allowed: true, isToday: true };
+        if (isYesterday) return { allowed: true, isYesterday: true, message: "Editing Yesterday's Attendance" };
+
+        return { allowed: false, message: "You can only mark attendance for Today or Edit Yesterday." };
+    };
+
+    const dateStatus = useMemo(() => getDateStatus(selectedDate), [selectedDate]);
+
     const loadInitialData = async () => {
         setLoading(true);
         try {
@@ -505,22 +530,43 @@ const TeacherDashboard = () => {
                                             </button>
                                         </div>
 
+                                        {!dateStatus.allowed && (
+                                            <div className="mb-6 bg-red-500/10 border border-red-500/20 text-red-300 p-4 rounded-xl flex items-center gap-3 animate-pulse">
+                                                <FaTimes className="text-red-400 text-xl" />
+                                                <span className="font-bold">{dateStatus.message}</span>
+                                            </div>
+                                        )}
+
                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-24">
                                             {filteredRoster.map(student => {
-                                                const isPresent = !!attendanceState[student.rollNumber];
+                                                // Check if already in history (e.g. RFID or previous manual)
+                                                const existingRecord = filteredHistory.find(r => r.rollNumber === student.rollNumber);
+                                                const isAlreadyMarked = !!existingRecord;
+
+                                                // Check local selection state
+                                                const isSelected = !!attendanceState[student.rollNumber];
+
+                                                // Final "Present" visual state is either or
+                                                const isPresent = isAlreadyMarked || isSelected;
+
                                                 return (
                                                     <div
                                                         key={student.id}
-                                                        onClick={() => toggleAttendance(student.rollNumber)}
-                                                        className={`relative p-5 rounded-2xl border cursor-pointer transition-all duration-200 group backdrop-blur-sm
-                                                        ${isPresent
+                                                        onClick={() => {
+                                                            if (!dateStatus.allowed) return;
+                                                            if (isAlreadyMarked) return; // Prevent toggling if already saved
+                                                            toggleAttendance(student.rollNumber);
+                                                        }}
+                                                        className={`relative p-5 rounded-2xl border transition-all duration-200 group backdrop-blur-sm
+                                                ${!dateStatus.allowed || isAlreadyMarked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}
+                                                ${isPresent
                                                                 ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-900/20 ring-1 ring-green-500/50'
                                                                 : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-blue-500/50 hover:shadow-lg'
                                                             }`}
                                                     >
                                                         <div className="flex justify-between items-start mb-3">
                                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold transition-colors
-                                                                ${isPresent ? 'bg-green-500 text-white' : 'bg-gray-800 text-gray-500 group-hover:bg-blue-500/20 group-hover:text-blue-400'}`}>
+                                                        ${isPresent ? 'bg-green-500 text-white' : 'bg-gray-800 text-gray-500 group-hover:bg-blue-500/20 group-hover:text-blue-400'}`}>
                                                                 {isPresent ? <FaCheck /> : <FaTimes />}
                                                             </div>
                                                             <span className="text-xs font-mono text-gray-400 bg-black/20 px-2 py-1 rounded-md border border-white/5">
@@ -528,9 +574,19 @@ const TeacherDashboard = () => {
                                                             </span>
                                                         </div>
                                                         <h4 className={`font-bold text-lg mb-1 ${isPresent ? 'text-green-400' : 'text-gray-200'}`}>{student.name}</h4>
-                                                        <p className={`text-xs font-medium ${isPresent ? 'text-green-300/80' : 'text-gray-500'}`}>
-                                                            {isPresent ? 'Marked Present' : 'Marked Absent'}
-                                                        </p>
+
+                                                        {/* Status Message */}
+                                                        <div className="min-h-[20px]">
+                                                            {isAlreadyMarked ? (
+                                                                <p className="text-xs font-bold text-yellow-300 flex items-center gap-1">
+                                                                    <FaUniversity size={10} /> Saved: {formatTimeReadable(existingRecord.time)}
+                                                                </p>
+                                                            ) : isSelected ? (
+                                                                <p className="text-xs font-medium text-green-300/80">Marked to Submit</p>
+                                                            ) : (
+                                                                <p className="text-xs font-medium text-gray-500">Absent</p>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
@@ -540,8 +596,8 @@ const TeacherDashboard = () => {
                                         <div className="fixed bottom-8 left-0 right-0 max-w-6xl mx-auto px-4 pointer-events-none flex justify-center z-20">
                                             <button
                                                 onClick={submitAttendance}
-                                                disabled={loading}
-                                                className="pointer-events-auto bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 font-bold text-lg transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-70 disabled:translate-y-0 shadow-blue-900/50 ring-2 ring-blue-400/50 ring-offset-2 ring-offset-gray-900"
+                                                disabled={loading || !dateStatus.allowed}
+                                                className="pointer-events-auto bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 font-bold text-lg transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale disabled:translate-y-0 shadow-blue-900/50 ring-2 ring-blue-400/50 ring-offset-2 ring-offset-gray-900"
                                             >
                                                 {loading ? (
                                                     <span>Saving...</span>

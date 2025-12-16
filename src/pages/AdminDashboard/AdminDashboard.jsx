@@ -28,6 +28,10 @@ const AdminDashboard = () => {
     const [editingUser, setEditingUser] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
 
+    // Edit Application State
+    const [editingApp, setEditingApp] = useState(null);
+    const [showAppEditModal, setShowAppEditModal] = useState(false);
+
     useEffect(() => {
         const handleResize = () => {
             const mobile = window.innerWidth < 768;
@@ -197,18 +201,50 @@ const AdminDashboard = () => {
     const handleUpdateUser = async (e) => {
         e.preventDefault();
         try {
-            await updateDoc(doc(db, "users", editingUser.id), {
+            const updates = {
                 name: editingUser.name,
                 role: editingUser.role,
                 department: editingUser.department || '',
                 phone: editingUser.phone || ''
-            });
+            };
+
+            if (editingUser.role === 'student') {
+                updates.rollNumber = editingUser.rollNumber || '';
+                updates.class = editingUser.class || '';
+            }
+
+            await updateDoc(doc(db, "users", editingUser.id), updates);
             alert("User updated successfully!");
             setShowEditModal(false);
             fetchData();
         } catch (error) {
             console.error(error);
             alert("Error updating user: " + error.message);
+        }
+    };
+
+    // --- Edit Application Logic ---
+    const openAppEditModal = (app) => {
+        setEditingApp({ ...app });
+        setShowAppEditModal(true);
+    };
+
+    const handleUpdateApp = async (e) => {
+        e.preventDefault();
+        try {
+            await updateDoc(doc(db, "applications", editingApp.id), {
+                name: editingApp.name,
+                rollNumber: editingApp.rollNumber || '',
+                className: editingApp.className || '',
+                password: editingApp.password || '', // Allowing password edit
+                details: editingApp.details || ''
+            });
+            alert("Application updated successfully!");
+            setShowAppEditModal(false);
+            fetchData();
+        } catch (error) {
+            console.error(error);
+            alert("Error updating application: " + error.message);
         }
     };
 
@@ -351,6 +387,9 @@ const AdminDashboard = () => {
                                                             </td>
                                                             <td className="p-4 text-gray-400 text-sm max-w-xs truncate">{app.details}</td>
                                                             <td className="p-4 flex justify-end gap-2">
+                                                                <button onClick={() => openAppEditModal(app)} className="p-2 hover:bg-blue-500/20 text-blue-500 rounded transition-colors" title="Edit Details">
+                                                                    <FaEdit />
+                                                                </button>
                                                                 <button onClick={() => handleApproveApp(app)} className="p-2 hover:bg-green-500/20 text-green-500 rounded transition-colors" title="Approve">
                                                                     <FaCheck />
                                                                 </button>
@@ -521,10 +560,23 @@ const AdminDashboard = () => {
                                         <option value="admin">Admin</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Department / Details</label>
-                                    <input type="text" className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none" value={editingUser.department} onChange={e => setEditingUser({ ...editingUser, department: e.target.value })} />
-                                </div>
+                                {editingUser.role === 'student' ? (
+                                    <>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Roll Number</label>
+                                            <input type="text" className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none" value={editingUser.rollNumber || ''} onChange={e => setEditingUser({ ...editingUser, rollNumber: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Class</label>
+                                            <input type="text" className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none" value={editingUser.class || ''} onChange={e => setEditingUser({ ...editingUser, class: e.target.value })} />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Department / Details</label>
+                                        <input type="text" className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none" value={editingUser.department} onChange={e => setEditingUser({ ...editingUser, department: e.target.value })} />
+                                    </div>
+                                )}
 
                                 <div className="pt-4 flex gap-3">
                                     <button type="button" onClick={handleResetPassword} className="flex-1 py-2 bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-500 border border-yellow-600/50 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2">
@@ -532,6 +584,48 @@ const AdminDashboard = () => {
                                     </button>
                                     <button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg">
                                         Update User
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Application Edit Modal */}
+            {showAppEditModal && editingApp && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-[#1e293b] border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                            <h3 className="text-xl font-bold text-white">Edit Application</h3>
+                            <button onClick={() => setShowAppEditModal(false)} className="text-gray-400 hover:text-white transition-colors"><FaTimes size={20} /></button>
+                        </div>
+                        <div className="p-6">
+                            <form onSubmit={handleUpdateApp} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Name</label>
+                                    <input type="text" className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none" value={editingApp.name} onChange={e => setEditingApp({ ...editingApp, name: e.target.value })} />
+                                </div>
+                                {editingApp.role === 'student' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Roll Number</label>
+                                            <input type="text" className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none" value={editingApp.rollNumber || ''} onChange={e => setEditingApp({ ...editingApp, rollNumber: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Class</label>
+                                            <input type="text" className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none" value={editingApp.className || ''} onChange={e => setEditingApp({ ...editingApp, className: e.target.value })} />
+                                        </div>
+                                    </>
+                                )}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Requested Password</label>
+                                    <input type="text" className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-blue-500 outline-none font-mono" value={editingApp.password} onChange={e => setEditingApp({ ...editingApp, password: e.target.value })} />
+                                </div>
+
+                                <div className="pt-4">
+                                    <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg">
+                                        Save Changes
                                     </button>
                                 </div>
                             </form>

@@ -287,6 +287,38 @@ const StudentDashboard = () => {
         </div>
     );
 
+    const formatTimeReadable = (timeStr) => {
+        if (!timeStr) return "--:--";
+
+        // Case 1: Handle ISO Date Strings (e.g. from Sheets JSON)
+        if (String(timeStr).includes('T') || String(timeStr).includes('-')) {
+            const d = new Date(timeStr);
+            if (!isNaN(d.getTime())) {
+                return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            }
+        }
+
+        // Case 2: Already 12-hour format
+        if (/AM|PM/i.test(timeStr)) return timeStr;
+
+        // Case 3: Simple 24-hour HH:mm string
+        const parts = String(timeStr).split(':');
+        if (parts.length >= 2) {
+            let hours = parseInt(parts[0], 10);
+            let minutes = parseInt(parts[1], 10);
+
+            if (!isNaN(hours) && !isNaN(minutes)) {
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12;
+                hours = hours ? hours : 12; // 0 becomes 12
+                const mStr = minutes.toString().padStart(2, '0');
+                return `${hours}:${mStr} ${ampm}`;
+            }
+        }
+
+        return timeStr;
+    };
+
     const renderHistory = () => (
         <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/10 p-6 animate-fadeIn">
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
@@ -317,7 +349,7 @@ const StudentDashboard = () => {
                                         </span>
                                     </td>
                                     <td className="p-4 font-medium text-white">{record.date}</td>
-                                    <td className="p-4 text-gray-300 font-mono">{record.time}</td>
+                                    <td className="p-4 text-gray-300 font-mono">{formatTimeReadable(record.time)}</td>
                                     <td className="p-4 text-blue-400">
                                         <FaCheckDouble />
                                     </td>
